@@ -61,8 +61,4 @@ streamlit run app.py
 - Advanced analytics dashboard
 - ERP integration
 
----
 
-## Screenshots
-
-(Add screenshots here later)
