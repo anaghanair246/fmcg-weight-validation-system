@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Meat QC Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0b0e14;
+    --surface: #12161f;
+    --surface2: #1a202e;
+    --border: #242b3d;
+    --accent: #00e5a0;
+    --accent2: #0099ff;
+    --danger: #ff4d6a;
+    --warn: #ffb830;
+    --text: #e2e8f0;
+    --muted: #5a6480;
+    --card-radius: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    font-size: 1.1rem; font-weight: 700; letter-spacing: 0.04em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .header-right { display: flex; align-items: center; gap: 20px; }
+  .clock { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--muted); }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 32px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 14px 24px;
+    font-size: 0.85rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Tab panels ── */
+  .panel { display: none; padding: 32px; }
+  .panel.active { display: block; }
+
+  /* ── Live Panel ── */
+  .live-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 24px;
+  }
+
+  .card-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* scan button */
+  .scan-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    font-family: 'Sora', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0b0e14;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity 0.2s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .scan-btn:hover { opacity: 0.9; }
+  .scan-btn:active { transform: scale(0.98); }
+  .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* product card */
+  .product-name {
+    font-size: 1.3rem; font-weight: 700;
+    line-height: 1.3; margin-bottom: 8px;
+    min-height: 2.6rem;
+  }
+  .qr-badge {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--accent2);
+    background: rgba(0,153,255,0.1);
+    border: 1px solid rgba(0,153,255,0.3);
+    padding: 3px 10px;
+    border-radius: 6px;
+  }
+
+  /* weight meters */
+  .weight-row { display: flex; gap: 16px; margin-top: 16px; }
+  .wt-block { flex: 1; }
+  .wt-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+  .wt-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 2rem; font-weight: 500;
+    color: var(--text);
+  }
+  .wt-unit { font-size: 0.9rem; color: var(--muted); margin-left: 4px; }
+
+  /* variance bar */
+  .var-bar-wrap { margin-top: 20px; }
+  .var-track {
+    height: 8px; background: var(--surface2);
+    border-radius: 99px; overflow: hidden;
+    position: relative;
+  }
+  .var-fill {
+    height: 100%; border-radius: 99px;
+    transition: width 0.6s cubic-bezier(.4,0,.2,1), background 0.4s;
+    width: 0%;
+  }
+  .var-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.75rem; color: var(--muted); }
+
+  /* status badge */
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    border-radius: 99px;
+    font-size: 1rem; font-weight: 700;
+    letter-spacing: 0.06em;
+    transition: all 0.4s;
+  }
+  .status-badge.accept {
+    background: rgba(0,229,160,0.12);
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
+  }
+  .status-badge.reject {
+    background: rgba(255,77,106,0.12);
+    border: 1.5px solid var(--danger);
+    color: var(--danger);
+  }
+  .status-badge.idle {
+    background: rgba(90,100,128,0.15);
+    border: 1.5px solid var(--border);
+    color: var(--muted);
+  }
+  .pulse { animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* manual input row */
+  .manual-row { display: flex; gap: 10px; margin-top: 16px; }
+  .manual-row input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .manual-row input:focus { border-color: var(--accent2); }
+  .manual-row input::placeholder { color: var(--muted); }
+
+  .mini-btn {
+    padding: 10px 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* weight input */
+  .wt-input-row { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+  .wt-input-row input {
+    width: 140px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 1.1rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  .wt-input-row input:focus { border-color: var(--accent); }
+  .wt-suffix { color: var(--muted); font-size: 0.9rem; }
+
+  /* spanning card */
+  .span2 { grid-column: 1 / -1; }
+
+  /* recent log table */
+  .mini-log { margin-top: 16px; }
+  .log-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+    animation: slideIn 0.35s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } }
+  .log-row:last-child { border-bottom: none; }
+  .log-ts { font-family: 'DM Mono', monospace; color: var(--muted); min-width: 145px; }
+  .log-product { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log-status { font-weight: 700; font-size: 0.78rem; letter-spacing: 0.06em; }
+  .log-status.accept { color: var(--accent); }
+  .log-status.reject { color: var(--danger); }
+
+  /* ── History Panel ── */
+  .history-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .product-list { display: flex; flex-direction: column; gap: 8px; }
+  .product-pill {
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.82rem;
+  }
+  .product-pill:hover { border-color: var(--accent2); }
+  .product-pill.selected { border-color: var(--accent); background: rgba(0,229,160,0.07); }
+  .pill-name { font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
+  .pill-meta { font-size: 0.72rem; color: var(--muted); display: flex; gap: 10px; }
+  .pill-accept { color: var(--accent); }
+  .pill-reject { color: var(--danger); }
+
+  .history-right { display: flex; flex-direction: column; gap: 20px; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 18px 20px;
+  }
+  .stat-num { font-family: 'DM Mono', monospace; font-size: 1.8rem; font-weight: 500; }
+  .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-top: 4px; }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 24px;
+  }
+  .chart-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 20px; }
+  .chart-wrap { position: relative; height: 280px; }
+
+  /* full history table */
+  .hist-table-wrap { overflow-x: auto; }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  th {
+    text-align: left; padding: 10px 14px;
+    font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(36,43,61,0.6);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  td.accept { color: var(--accent); font-weight: 600; }
+  td.reject { color: var(--danger); font-weight: 600; }
+  td.product-cell { font-family: 'Sora', sans-serif; font-size: 0.8rem; max-width: 240px; }
+
+  /* placeholder */
+  .placeholder {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted); font-size: 0.9rem;
+  }
+  .placeholder svg { margin-bottom: 12px; opacity: 0.25; }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 22px;
+    font-size: 0.85rem; color: var(--text);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999;
+  }
+  #toast.show { opacity: 1; }
+
+  /* loading spinner */
+  .spinner {
+    width: 20px; height: 20px; border: 2px solid rgba(0,229,160,0.2);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 800px) {
+    .live-grid, .history-layout { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    header { padding: 14px 16px; }
+    .panel { padding: 16px; }
+    .tabs { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    MEAT QC INSPECTOR
+  </div>
+  <div class="header-right">
+    <span class="clock" id="clock">--:--:--</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="live">⦿ Live Scan</div>
+  <div class="tab" data-tab="history">◈ History</div>
+</div>
+
+<!-- ═══════════════════ LIVE PANEL ═══════════════════ -->
+<div class="panel active" id="panel-live">
+  <div class="live-grid">
+
+    <!-- Scan control -->
+    <div class="card">
+      <div class="card-label">Scanner</div>
+      <button class="scan-btn" id="scanBtn" onclick="startScan()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><path d="M21 16h-3v3m0-3v3h-3m3-9h3M16 12h.01M21 12v3M3 12h3m0 3v3m0 0h3"/></svg>
+        SCAN QR CODE
+      </button>
+      <div class="manual-row">
+        <input type="text" id="manualQR" placeholder="or type QR code manually…" onkeydown="if(event.key==='Enter') applyManualQR()"/>
+        <button class="mini-btn" onclick="applyManualQR()">Look Up</button>
+      </div>
+    </div>
+
+    <!-- Product info -->
+    <div class="card">
+      <div class="card-label">Scanned Product</div>
+      <div class="product-name" id="productName">—</div>
+      <span class="qr-badge" id="qrBadge">No scan yet</span>
+    </div>
+
+    <!-- Weight entry -->
+    <div class="card">
+      <div class="card-label">Weight Measurement</div>
+      <div class="weight-row">
+        <div class="wt-block">
+          <div class="wt-label">Nominal Net Wt</div>
+          <div class="wt-value" id="nominalWt">—<span class="wt-unit">kg</span></div>
+        </div>
+        <div class="wt-block">
+          <div class="wt-label">Measured Wt</div>
+          <div class="wt-value" id="measuredWtDisplay">—<span class="wt-unit">kg</span></div>
+        </div>
+      </div>
+      <div class="wt-input-row">
+        <input type="number" step="0.001" id="measuredInput" placeholder="0.000" oninput="onWeightInput()"/>
+        <span class="wt-suffix">kg  measured</span>
+      </div>
+      <div class="var-bar-wrap">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:0.75rem;color:var(--muted)">Variance</span>
+          <span style="font-family:'DM Mono',monospace;font-size:0.82rem;" id="varText">—</span>
+        </div>
+        <div class="var-track"><div class="var-fill" id="varFill"></div></div>
+        <div class="var-labels"><span>−10%</span><span>0</span><span>+10%</span></div>
+      </div>
+    </div>
+
+    <!-- Status + log -->
+    <div class="card">
+      <div class="card-label">Decision</div>
+      <div style="margin-bottom:20px;">
+        <div class="status-badge idle" id="statusBadge">
+          <span class="pulse">●</span> AWAITING SCAN
+        </div>
+      </div>
+      <button class="mini-btn" id="logBtn" onclick="logResult()" style="width:100%;padding:12px;font-size:0.9rem;display:none;">
+        ✓ CONFIRM &amp; LOG RESULT
+      </button>
+    </div>
+
+    <!-- Recent entries -->
+    <div class="card span2">
+      <div class="card-label">Recent Activity</div>
+      <div class="mini-log" id="miniLog">
+        <div style="color:var(--muted);font-size:0.82rem;padding:10px 0;">No entries yet.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════ HISTORY PANEL ═══════════════════ -->
+<div class="panel" id="panel-history">
+  <div class="history-layout">
+
+    <!-- Left: product list -->
+    <div>
+      <div class="card-label" style="margin-bottom:12px;">Products</div>
+      <div class="product-list" id="productList">
+        <div style="color:var(--muted);font-size:0.82rem;">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Right: charts + table -->
+    <div class="history-right">
+
+      <div class="stats-row" id="statsRow">
+        <div class="stat-card"><div class="stat-num" id="st-total">—</div><div class="stat-label">Total Scans</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--accent)" id="st-accept">—</div><div class="stat-label">Accepted</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--danger)" id="st-reject">—</div><div class="stat-label">Rejected</div></div>
+        <div class="stat-card"><div class="stat-num" id="st-rate">—</div><div class="stat-label">Accept Rate</div></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title" id="chartTitle">Select a product to view its scan history</div>
+        <div class="chart-wrap"><canvas id="historyChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label" id="tableTitle">All Scans</div>
+        <div class="hist-table-wrap">
+          <table id="histTable">
+            <thead>
+              <tr>
+                <th>Timestamp</th><th>Product</th><th>QR Code</th>
+                <th>Measured (kg)</th><th>Nominal (kg)</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="histTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const API = '';   // same origin
+let state = { qr: null, product: null, nominal: null, measured: null, status: null };
+let historyChart = null;
+let allLogs = [];
+let selectedProduct = null;
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}, 1000);
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'history') loadHistory();
+  });
+});
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg, dur=2400) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── SCAN ───────────────────────────────────────────────────────────────────
+async function startScan() {
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="display:block"></div> Scanning…';
+  try {
+    const res = await fetch(API + '/api/scan', { method: 'POST' });
+    const data = await res.json();
+    if (data.qr) {
+      await applyQR(data.qr);
+    } else {
+      toast('⚠ ' + (data.error || 'Scan failed'));
+    }
+  } catch(e) {
+    toast('⚠ Could not reach scanner.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><path d="M21 16h-3v3m0-3v3h-3m3-9h3M16 12h.01M21 12v3M3 12h3m0 3v3m0 0h3"/></svg> SCAN QR CODE';
+  }
+}
+
+function applyManualQR() {
+  const val = document.getElementById('manualQR').value.trim();
+  if (!val) return;
+  applyQR(val);
+  document.getElementById('manualQR').value = '';
+}
+
+async function applyQR(qr) {
+  state.qr = qr;
+  state.measured = null;
+  document.getElementById('measuredInput').value = '';
+  document.getElementById('qrBadge').textContent = qr;
+  document.getElementById('logBtn').style.display = 'none';
+  setStatus('idle');
+
+  try {
+    const res = await fetch(API + '/api/lookup?qr=' + encodeURIComponent(qr));
+    const data = await res.json();
+    state.product = data.product || 'Unknown';
+    state.nominal = data.nominal_weight || null;
+    document.getElementById('productName').textContent = state.product;
+    document.getElementById('nominalWt').innerHTML =
+      state.nominal != null
+        ? state.nominal.toFixed(3) + '<span class="wt-unit">kg</span>'
+        : '—<span class="wt-unit">kg</span>';
+    toast('✓ Product loaded — enter measured weight');
+  } catch(e) {
+    toast('⚠ Lookup failed: ' + e.message);
+  }
+}
+
+// ── Weight input ───────────────────────────────────────────────────────────
+function onWeightInput() {
+  const raw = parseFloat(document.getElementById('measuredInput').value);
+  if (isNaN(raw)) {
+    document.getElementById('measuredWtDisplay').innerHTML = '—<span class="wt-unit">kg</span>';
+    document.getElementById('varText').textContent = '—';
+    document.getElementById('varFill').style.width = '0%';
+    document.getElementById('logBtn').style.display = 'none';
+    setStatus('idle');
+    return;
+  }
+  state.measured = raw;
+  document.getElementById('measuredWtDisplay').innerHTML = raw.toFixed(3) + '<span class="wt-unit">kg</span>';
+
+  if (state.nominal != null) {
+    // Compute variance %
+    const varPct = ((raw - state.nominal) / state.nominal) * 100;
+    document.getElementById('varText').textContent =
+      (varPct >= 0 ? '+' : '') + varPct.toFixed(2) + '%';
+    // ACCEPT: measured >= nominal; REJECT: measured < nominal
+    const accepted = raw >= state.nominal;
+    state.status = accepted ? 'ACCEPT' : 'REJECT';
+    setStatus(accepted ? 'accept' : 'reject');
+
+    // Variance bar (maps -10% .. +10% to 0..100%)
+    const clamped = Math.max(-10, Math.min(10, varPct));
+    const pct = ((clamped + 10) / 20) * 100;
+    const fill = document.getElementById('varFill');
+    fill.style.width = pct + '%';
+    fill.style.background = accepted
+      ? 'linear-gradient(90deg,#00c47a,var(--accent))'
+      : 'linear-gradient(90deg,var(--danger),#ff8099)';
+  } else {
+    // No nominal — just show measured, let user decide
+    document.getElementById('varText').textContent = 'No nominal on file';
+    state.status = null;
+    setStatus('idle');
+  }
+
+  if (state.qr && state.product) {
+    document.getElementById('logBtn').style.display = 'block';
+  }
+}
+
+function setStatus(type) {
+  const b = document.getElementById('statusBadge');
+  b.className = 'status-badge ' + type;
+  if (type === 'accept') b.innerHTML = '✓ ACCEPTED';
+  else if (type === 'reject') b.innerHTML = '✗ REJECTED';
+  else b.innerHTML = '<span class="pulse">●</span> AWAITING SCAN';
+}
+
+// ── Log result ─────────────────────────────────────────────────────────────
+async function logResult() {
+  if (!state.qr || !state.product || state.measured == null) {
+    toast('⚠ Complete scan and weight entry first.'); return;
+  }
+  const statusFinal = state.status || (state.measured >= (state.nominal||0) ? 'ACCEPT' : 'REJECT');
+  const payload = {
+    product: state.product,
+    qr_code: state.qr,
+    measured_weight: state.measured,
+    actual_net_weight: state.nominal || state.measured,
+    status: statusFinal
+  };
+  try {
+    await fetch(API + '/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    toast('✓ Logged: ' + statusFinal);
+    refreshMiniLog();
+    // reset
+    state = { qr: null, product: null, nominal: null, measured: null, status: null };
+    document.getElementById('productName').textContent = '—';
+    document.getElementById('qrBadge').textContent = 'No scan yet';
+    document.getElementById('nominalWt').innerHTML = '—<span class="wt-unit">kg</span>';
+    document.getElementById('measuredWtDisplay').innerHTML = '—<span class="wt-unit">kg</span>';
+    document.getElementById('measuredInput').value = '';
+    document.getElementById('varFill').style.width = '0%';
+    document.getElementById('varText').textContent = '—';
+    document.getElementById('logBtn').style.display = 'none';
+    setStatus('idle');
+  } catch(e) {
+    toast('⚠ Log failed: ' + e.message);
+  }
+}
+
+// ── Mini log (live tab) ────────────────────────────────────────────────────
+async function refreshMiniLog() {
+  const res = await fetch(API + '/api/history');
+  const logs = await res.json();
+  const recent = logs.slice(-6).reverse();
+  const container = document.getElementById('miniLog');
+  if (!recent.length) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;padding:10px 0;">No entries yet.</div>';
+    return;
+  }
+  container.innerHTML = recent.map(r => `
+    <div class="log-row">
+      <span class="log-ts">${r.Timestamp}</span>
+      <span class="log-product" title="${r.Product}">${r.Product}</span>
+      <span class="log-status ${r.Status.toLowerCase()}">${r.Status}</span>
+    </div>
+  `).join('');
+}
+refreshMiniLog();
+
+// ── HISTORY ────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const res = await fetch(API + '/api/history');
+  allLogs = await res.json();
+  renderProductList();
+  renderStats(allLogs);
+  renderTable(allLogs);
+  if (selectedProduct) selectProduct(selectedProduct);
+}
+
+function renderProductList() {
+  const products = {};
+  allLogs.forEach(r => {
+    const p = r.Product;
+    if (!products[p]) products[p] = { total:0, accept:0, reject:0 };
+    products[p].total++;
+    if (r.Status === 'ACCEPT') products[p].accept++;
+    else products[p].reject++;
+  });
+  const list = document.getElementById('productList');
+  const entries = Object.entries(products);
+  if (!entries.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;">No history yet.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(([name, s]) => `
+    <div class="product-pill ${selectedProduct===name?'selected':''}" onclick="selectProduct('${name.replace(/'/g,"\\'")}')">
+      <div class="pill-name">${name}</div>
+      <div class="pill-meta">
+        <span class="pill-accept">✓ ${s.accept}</span>
+        <span class="pill-reject">✗ ${s.reject}</span>
+        <span>${s.total} scans</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderStats(logs) {
+  const total = logs.length;
+  const accept = logs.filter(r=>r.Status==='ACCEPT').length;
+  const reject = total - accept;
+  document.getElementById('st-total').textContent = total;
+  document.getElementById('st-accept').textContent = accept;
+  document.getElementById('st-reject').textContent = reject;
+  document.getElementById('st-rate').textContent = total ? Math.round(accept/total*100)+'%' : '—';
+}
+
+function renderTable(logs) {
+  const tbody = document.getElementById('histTbody');
+  if (!logs.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">No data</td></tr>';
+    return;
+  }
+  tbody.innerHTML = [...logs].reverse().map(r => `
+    <tr>
+      <td>${r.Timestamp}</td>
+      <td class="product-cell">${r.Product}</td>
+      <td>${r['QR Code']}</td>
+      <td>${parseFloat(r['Measured Weight']).toFixed(3)}</td>
+      <td>${parseFloat(r['Actual Net Weight']).toFixed(3)}</td>
+      <td class="${r.Status.toLowerCase()}">${r.Status}</td>
+    </tr>
+  `).join('');
+}
+
+function selectProduct(name) {
+  selectedProduct = name;
+  // Update pill highlight
+  document.querySelectorAll('.product-pill').forEach(p => {
+    p.classList.toggle('selected', p.querySelector('.pill-name').textContent === name);
+  });
+
+  const filtered = allLogs.filter(r => r.Product === name);
+  renderStats(filtered);
+  renderTable(filtered);
+  document.getElementById('tableTitle').textContent = name;
+  renderChart(name, filtered);
+}
+
+function renderChart(name, logs) {
+  document.getElementById('chartTitle').textContent = name + ' — Scan History';
+  const labels = logs.map(r => r.Timestamp);
+  const measured = logs.map(r => parseFloat(r['Measured Weight']));
+  const nominal = logs.map(r => parseFloat(r['Actual Net Weight']));
+  const colors = logs.map(r => r.Status === 'ACCEPT' ? '#00e5a0' : '#ff4d6a');
+
+  if (historyChart) { historyChart.destroy(); }
+  const ctx = document.getElementById('historyChart').getContext('2d');
+  historyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Measured Weight (kg)',
+          data: measured,
+          borderColor: '#0099ff',
+          backgroundColor: 'rgba(0,153,255,0.08)',
+          pointBackgroundColor: colors,
+          pointBorderColor: colors,
+          pointRadius: 7,
+          pointHoverRadius: 9,
+          borderWidth: 2,
+          fill: true,
+          tension: 0.35
+        },
+        {
+          label: 'Nominal Weight (kg)',
+          data: nominal,
+          borderColor: 'rgba(255,184,48,0.6)',
+          borderDash: [6,4],
+          pointRadius: 0,
+          borderWidth: 1.5,
+          fill: false,
+          tension: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: '#5a6480', font: { family: 'Sora', size: 11 } }
+        },
+        tooltip: {
+          backgroundColor: '#12161f',
+          borderColor: '#242b3d',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#a0aec0',
+          titleFont: { family: 'Sora', size: 11 },
+          callbacks: {
+            afterLabel: (ctx) => {
+              const r = logs[ctx.dataIndex];
+              return 'Status: ' + r.Status;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#5a6480', font: { family: 'DM Mono', size: 9 }, maxRotation: 35 },
+          grid: { color: 'rgba(36,43,61,0.8)' }
+        },
+        y: {
+          ticks: { color: '#5a6480', font: { family: 'DM Mono', size: 10 } },
+          grid: { color: 'rgba(36,43,61,0.8)' },
+          title: { display: true, text: 'kg', color: '#5a6480', font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
