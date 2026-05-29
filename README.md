@@ -7,18 +7,28 @@ The system scans QR codes using a webcam, validates product weights against pred
 
 ---
 
+## Live Demo
+
+🔗 https://fmcg-weight-validator.streamlit.app/
+
 ## Features
 
-- Real-time QR code scanning using webcam
-- Product identification using unique QR codes
-- Live weight validation with tolerance checking
-- Automatic accept/reject decision system
-- Interactive Streamlit dashboard
-- Acceptance vs rejection analytics using donut charts
-- Individual product history tracking
-- Search functionality for product traceability
-- Real-time operational monitoring
+- QR code product lookup
+- Weight validation with tolerance checks
+- Scan history tracking
+- Product-level analytics
+- CSV and Excel export
 
+## Sample QR Codes
+
+### QR Code 1
+![QR 1](sample_qr_codes/qr_1.png)
+
+### QR Code 2
+![QR 2](sample_qr_codes/qr_2.png)
+
+### QR Code 3
+![QR 3](sample_qr_codes/qr_3.png)
 ---
 
 ## Tech Stack
@@ -50,21 +60,6 @@ static/
 pip install -r requirements.txt
 streamlit run app.py
 ```
-
----
-
-## Try the Demo
-
-Use these sample QR codes in the deployed app.
-
-### QR Code 1
-![QR 1](sample_qr_codes/qr_1.png)
-
-### QR Code 2
-![QR 2](sample_qr_codes/qr_2.png)
-
-### QR Code 3
-![QR 3](sample_qr_codes/qr_3.png)
 
 ---
 
