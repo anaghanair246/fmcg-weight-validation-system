@@ -9,7 +9,7 @@ The system scans QR codes using a webcam, validates product weights against pred
 
 ## Live Demo
 
-🔗 https://fmcg-weight-validator.streamlit.app/
+🔗 [https://fmcg-weight-validator.streamlit.app/](https://fmcg-weight-validator.streamlit.app/)
 
 ## Features
 
