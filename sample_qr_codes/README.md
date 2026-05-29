@@ -1,12 +1,10 @@
-## Try the Demo
-
-Scan one of the sample QR codes below in the deployed app:
+## Sample QR Codes
 
 ### QR Code 1
-![QR Code 1](sample_qr_codes/qr_1.png)
+![QR 1](qr_1.png)
 
 ### QR Code 2
-![QR Code 2](sample_qr_codes/qr_2.png)
+![QR 2](qr_2.png)
 
 ### QR Code 3
-![QR Code 3](sample_qr_codes/qr_3.png)
+![QR 3](qr_3.png)
