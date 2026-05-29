@@ -53,6 +53,21 @@ streamlit run app.py
 
 ---
 
+## Try the Demo
+
+Use these sample QR codes in the deployed app.
+
+### QR Code 1
+![QR 1](sample_qr_codes/qr_1.png)
+
+### QR Code 2
+![QR 2](sample_qr_codes/qr_2.png)
+
+### QR Code 3
+![QR 3](sample_qr_codes/qr_3.png)
+
+---
+
 ## Future Improvements
 
 - Cloud database integration
